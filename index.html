@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0f16">
-<title>缠论三池 · 每日快照</title>
+<title>缠论四池 · 每日快照</title>
 <style>
 :root{--bg:#0b0f16;--card:#111823;--line:#1e2a3a;--txt:#e6edf7;--dim:#8b9bb0;--accent:#4da3ff;--ok:#31c27c;--bad:#ff5f56}
 *{box-sizing:border-box}
@@ -22,7 +22,8 @@ h1{font-size:22px;margin:6px 0 2px}
 .run .n{color:var(--dim);min-width:52px;text-align:right}
 .run .t{color:var(--dim);min-width:92px;text-align:right;font-variant-numeric:tabular-nums}
 .tabs{display:flex;gap:8px;margin-top:14px}
-.tab{flex:1;padding:9px 6px;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--dim);font-size:13px;cursor:pointer}
+.tab{flex:1;padding:9px 6px;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--dim);font-size:13px;cursor:pointer;white-space:nowrap}
+@media (max-width:430px){.tab{font-size:12px;padding:9px 2px}}
 .tab.on{border-color:var(--accent);color:#fff;background:#16283d}
 .head{display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px;gap:10px}
 .head .cnt{color:var(--dim);font-size:13px}
@@ -39,7 +40,7 @@ td.idx{color:var(--dim);width:34px}
 </head>
 <body>
 <div class="wrap">
-  <h1>缠论三池 · 每日快照</h1>
+  <h1>缠论四池 · 每日快照</h1>
   <div class="sub" id="genAt">加载中…</div>
 
   <div class="card">
@@ -53,9 +54,10 @@ td.idx{color:var(--dim);width:34px}
   </div>
 
   <div class="tabs">
-    <div class="tab" data-k="today-next">今买明卖池</div>
+    <div class="tab on" data-k="selfselect">自选池</div>
+    <div class="tab" data-k="pool">观察池</div>
     <div class="tab" data-k="signals">可操作池</div>
-    <div class="tab" data-k="selfselect">自选池</div>
+    <div class="tab" data-k="today-next">今买明卖池</div>
   </div>
 
   <div class="card" style="padding:6px 14px 14px">
@@ -66,16 +68,17 @@ td.idx{color:var(--dim);width:34px}
   </div>
 
   <div class="note">
-    时点：11:30 午盘选股 → 今买明卖池；16:30 透视主力 → 自选池；17:00 可操作名单 → 可操作池。<br>
+    四个池：自选池（透视主力 16:30 写入，雷达扫描用）· 观察池（个人持仓，手工维护）· 可操作池（可操作名单 17:00 写入）· 今买明卖池（午盘选股 11:30 写入）。<br>
     口径：短线轨用 SKDJ(35,5)，K&gt;D 记「金叉」，D−K≤2 且 K 上行记「即将金叉」；透视主力按吸筹/洗盘阶段分数排序，最多 60 只。<br>
+    观察池只发布代码与名称，<b>成本价、持仓量不外发</b>；它反映的是当前持仓，只在最新日期显示。<br>
     本页是选股时点的名单快照，不含实时行情，也不构成投资建议。数据由本机定时任务每次跑完自动发布。
   </div>
 </div>
 <script>
 (function () {
-  const LABEL = { 'today-next': '今买明卖池', 'signals': '可操作池', 'selfselect': '自选池' };
-  const QTY = { 'today-next': '午盘选股 11:30', 'signals': '可操作名单 17:00', 'selfselect': '透视主力 16:30' };
-  let tab = 'today-next';
+  const LABEL = { 'selfselect': '自选池', 'pool': '观察池', 'signals': '可操作池', 'today-next': '今买明卖池' };
+  const QTY = { 'selfselect': '透视主力 16:30', 'pool': '个人持仓 · 手工维护', 'signals': '可操作名单 17:00', 'today-next': '午盘选股 11:30' };
+  let tab = 'selfselect';
   let latest = null;
   let cur = null;
 
@@ -107,7 +110,7 @@ td.idx{color:var(--dim);width:34px}
     $('#poolMeta').textContent = `${LABEL[tab]} · ${codes.length} 只 · ${QTY[tab]}` + (exTxt ? `　(${exTxt})` : '');
     $('#rows').innerHTML = codes.length
       ? codes.map((c, i) => `<tr><td class="idx">${i + 1}</td><td class="code">${esc(c[0])}</td><td>${esc(c[1])}</td></tr>`).join('')
-      : `<tr><td colspan="3" class="empty">这一天${LABEL[tab]}没有内容（可能没跑，或当日无达标标的）</td></tr>`;
+      : `<tr><td colspan="3" class="empty">${tab === 'pool' ? '观察池是当前持仓，只在最新日期显示' : `这一天${LABEL[tab]}没有内容（可能没跑，或当日无达标标的）`}</td></tr>`;
     document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.k === tab));
   }
 
