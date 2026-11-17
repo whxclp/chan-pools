@@ -101,13 +101,41 @@ td.idx{color:var(--dim);width:34px}
     $('#runs').innerHTML = rows.length ? rows.join('') : '<div class="empty">还没有运行记录</div>';
   }
 
+  /* 每个池各自的更新时间，四种情况要分清：
+     今天跑成功 / 今天跑了但没选出票（未更新，不算失败）/ 有票但没写进去（失败）/ 今天没跑 */
+  function runWhen(v, snapDate) {
+    if (!v || !v.at) return '今日未更新';
+    const at = String(v.at);
+    const day = String(v.date || at.slice(0, 10));
+    const hm = at.slice(11, 16);
+    if (snapDate && day !== snapDate) return '未更新 · 上次 ' + at.slice(5, 10) + ' ' + hm;
+    if (v.ok) return '更新于 ' + hm;
+    const msg = String(v.msg || '');
+    const noPick = (Number(v.count) || 0) === 0 && /为空|未写池|无符合|没有/.test(msg);
+    if (noPick) return '未更新 · 今日无新名单';
+    return '更新失败 ' + hm + '（名单未写）';
+  }
+
+  function whenOf(k, st) {
+    /* 看的是历史日期的快照时，不套用今天的任务状态，免得把"今天没跑"错贴到历史页 */
+    if (cur && latest && cur.date !== latest.date) return '';
+    const runs = (st && st.runs) || {};
+    const map = { selfselect: 'zhuli', signals: 'ops', 'today-next': 'noon' };
+    const key = map[k];
+    if (key && runs[key]) return runWhen(runs[key], cur && cur.date);
+    if (k === 'pool' && latest && latest.generatedAt) return '手工维护 · 随快照 ' + String(latest.generatedAt).slice(11, 16);
+    return '';
+  }
+
   function paintPool() {
     if (!cur) return;
     const p = (cur.pools || {})[tab];
     const codes = (p && p.codes) || [];
     const extra = (p && p.extra) || {};
     const exTxt = Object.keys(extra).map((k) => k + ' ' + extra[k]).join(' · ');
-    $('#poolMeta').textContent = `${LABEL[tab]} · ${codes.length} 只 · ${QTY[tab]}` + (exTxt ? `　(${exTxt})` : '');
+    const w = whenOf(tab, cur.status || (latest && latest.status));
+    $('#poolMeta').textContent = `${LABEL[tab]} · ${codes.length} 只 · ${QTY[tab]}` +
+      (w ? ` · ${w}` : '') + (exTxt ? `　(${exTxt})` : '');
     $('#rows').innerHTML = codes.length
       ? codes.map((c, i) => `<tr><td class="idx">${i + 1}</td><td class="code">${esc(c[0])}</td><td>${esc(c[1])}</td></tr>`).join('')
       : `<tr><td colspan="3" class="empty">${tab === 'pool' ? '观察池是当前持仓，只在最新日期显示' : `这一天${LABEL[tab]}没有内容（可能没跑，或当日无达标标的）`}</td></tr>`;
