@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f16">
+<title>缠论三池 · 每日快照</title>
+<style>
+:root{--bg:#0b0f16;--card:#111823;--line:#1e2a3a;--txt:#e6edf7;--dim:#8b9bb0;--accent:#4da3ff;--ok:#31c27c;--bad:#ff5f56}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:18px 14px 40px}
+h1{font-size:22px;margin:6px 0 2px}
+.sub{color:var(--dim);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:14px}
+.card h2{font-size:14px;color:var(--dim);font-weight:600;margin:0 0 10px;letter-spacing:.02em}
+.run{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.run:last-child{border-bottom:none}
+.run .nm{flex:1}
+.run .st{font-weight:600}
+.run .st.ok{color:var(--ok)}.run .st.bad{color:var(--bad)}
+.run .n{color:var(--dim);min-width:52px;text-align:right}
+.run .t{color:var(--dim);min-width:92px;text-align:right;font-variant-numeric:tabular-nums}
+.tabs{display:flex;gap:8px;margin-top:14px}
+.tab{flex:1;padding:9px 6px;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--dim);font-size:13px;cursor:pointer}
+.tab.on{border-color:var(--accent);color:#fff;background:#16283d}
+.head{display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px;gap:10px}
+.head .cnt{color:var(--dim);font-size:13px}
+select{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:13px}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line);font-size:14px}
+th{color:var(--dim);font-weight:600;font-size:12px}
+td.code{color:var(--dim);font-variant-numeric:tabular-nums;width:72px}
+td.idx{color:var(--dim);width:34px}
+.empty{color:var(--dim);padding:18px 0;text-align:center}
+.note{color:var(--dim);font-size:12px;line-height:1.9;margin-top:18px}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--dim);font-size:12px;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>缠论三池 · 每日快照</h1>
+  <div class="sub" id="genAt">加载中…</div>
+
+  <div class="card">
+    <h2>任务运行</h2>
+    <div id="runs"><div class="empty">加载中…</div></div>
+  </div>
+
+  <div class="head">
+    <div class="cnt" id="poolMeta">—</div>
+    <select id="dateSel"></select>
+  </div>
+
+  <div class="tabs">
+    <div class="tab" data-k="today-next">今买明卖池</div>
+    <div class="tab" data-k="signals">可操作池</div>
+    <div class="tab" data-k="selfselect">自选池</div>
+  </div>
+
+  <div class="card" style="padding:6px 14px 14px">
+    <table>
+      <thead><tr><th>#</th><th>代码</th><th>名称</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    时点：11:30 午盘选股 → 今买明卖池；16:30 透视主力 → 自选池；17:00 可操作名单 → 可操作池。<br>
+    口径：短线轨用 SKDJ(35,5)，K&gt;D 记「金叉」，D−K≤2 且 K 上行记「即将金叉」；透视主力按吸筹/洗盘阶段分数排序，最多 60 只。<br>
+    本页是选股时点的名单快照，不含实时行情，也不构成投资建议。数据由本机定时任务每次跑完自动发布。
+  </div>
+</div>
+<script>
+(function () {
+  const LABEL = { 'today-next': '今买明卖池', 'signals': '可操作池', 'selfselect': '自选池' };
+  const QTY = { 'today-next': '午盘选股 11:30', 'signals': '可操作名单 17:00', 'selfselect': '透视主力 16:30' };
+  let tab = 'today-next';
+  let latest = null;
+  let cur = null;
+
+  const $ = (s) => document.querySelector(s);
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function paintRuns(st) {
+    const runs = (st && st.runs) || {};
+    const order = ['noon', 'zhuli', 'ops'];
+    const rows = order.filter((k) => runs[k]).map((k) => {
+      const v = runs[k];
+      return `<div class="run"><span class="nm">${esc(v.label)}</span>
+        <span class="st ${v.ok ? 'ok' : 'bad'}">${v.ok ? '成功' : '失败'}</span>
+        <span class="n">${v.count} 只</span>
+        <span class="t">${esc(String(v.at || '').slice(5, 16))}</span></div>`;
+    });
+    $('#runs').innerHTML = rows.length ? rows.join('') : '<div class="empty">还没有运行记录</div>';
+  }
+
+  function paintPool() {
+    if (!cur) return;
+    const p = (cur.pools || {})[tab];
+    const codes = (p && p.codes) || [];
+    const extra = (p && p.extra) || {};
+    const exTxt = Object.keys(extra).map((k) => k + ' ' + extra[k]).join(' · ');
+    $('#poolMeta').textContent = `${LABEL[tab]} · ${codes.length} 只 · ${QTY[tab]}` + (exTxt ? `　(${exTxt})` : '');
+    $('#rows').innerHTML = codes.length
+      ? codes.map((c, i) => `<tr><td class="idx">${i + 1}</td><td class="code">${esc(c[0])}</td><td>${esc(c[1])}</td></tr>`).join('')
+      : `<tr><td colspan="3" class="empty">这一天${LABEL[tab]}没有内容（可能没跑，或当日无达标标的）</td></tr>`;
+    document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.k === tab));
+  }
+
+  function paintDateSel(dates) {
+    const sel = $('#dateSel');
+    sel.innerHTML = dates.map((d) => `<option value="${d}">${d}</option>`).join('');
+  }
+
+  async function loadDate(d) {
+    try {
+      const r = await fetch(`data/history/${d}.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      cur = await r.json();
+    } catch (e) {
+      cur = { pools: {} };
+    }
+    paintPool();
+  }
+
+  async function boot() {
+    try {
+      const r = await fetch(`data/latest.json?t=${Date.now()}`, { cache: 'no-store' });
+      latest = await r.json();
+    } catch (e) {
+      $('#genAt').textContent = '数据还没发布（先在本机跑一次 publish_pools.py）';
+      return;
+    }
+    $('#genAt').textContent = `最近发布 ${latest.generatedAt || ''} · 数据日期 ${latest.date || '—'}`;
+    paintRuns(latest.status);
+    const dates = latest.dates && latest.dates.length ? latest.dates : [latest.date];
+    paintDateSel(dates);
+    $('#dateSel').value = latest.date;
+    cur = latest;
+    paintPool();
+    $('#dateSel').addEventListener('change', (e) => loadDate(e.target.value));
+    document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.k; paintPool(); }));
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
