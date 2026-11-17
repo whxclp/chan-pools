@@ -123,7 +123,7 @@ td.idx{color:var(--dim);width:34px}
     const map = { selfselect: 'zhuli', signals: 'ops', 'today-next': 'noon' };
     const key = map[k];
     if (key && runs[key]) return runWhen(runs[key], cur && cur.date);
-    if (k === 'pool' && latest && latest.generatedAt) return '手工维护 · 随快照 ' + String(latest.generatedAt).slice(11, 16);
+    if (k === 'pool' && latest && latest.generatedAt) return '随快照 ' + String(latest.generatedAt).slice(11, 16);
     return '';
   }
 
